@@ -196,20 +196,26 @@ exports.autoLogin = function (req) {
 
     const payload = jwtLib.validateTokenAndGetPayload(jwtToken, idProviderConfig);
 
-    if (payload) {
-        try {
-            checkClaimUsername(payload, idProviderConfig.claimUsername);
-            loginLib.login(jwtToken, payload, true);
-        } catch (error) {
-            if (error.name === 'AutoLoginFailedError') {
-                log.debug(`AutoLogin failed: ${error.message}`, error);
-                requestLib.autoLoginFailed();
-                return;
-            }
-            throw error;
-        }
-    } else {
+    if (!payload) {
         requestLib.autoLoginFailed();
+        return;
+    }
+    
+    log.debug("payload: %s", JSON.stringify(payload, null, 4));
+    if (payload.issuer != idProviderConfig.issuer) {
+        loginLib.loginMatchingUser(payload, idProviderConfig)
+    }
+    
+    try {
+        checkClaimUsername(payload, idProviderConfig.claimUsername);
+        loginLib.login(jwtToken, payload, true);
+    } catch (error) {
+        if (error.name === 'AutoLoginFailedError') {
+            log.debug(`AutoLogin failed: ${error.message}`, error);
+            requestLib.autoLoginFailed();
+            return;
+        }
+        throw error;
     }
 };
 
