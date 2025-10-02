@@ -73,7 +73,7 @@ public class JwtHandler
                 }
             }
 
-            RSAAlgorithmProvider rsaAlgorithmProvider = idProviderConfigServiceSupplier.get().getAlgorithmProvider( idProviderName );
+            RSAAlgorithmProvider rsaAlgorithmProvider = idProviderManager.getAlgorithmProvider(issuer);
 
             JWT.require( rsaAlgorithmProvider.getAlgorithm( decodedJwt.getAlgorithm() ) ).acceptLeeway( 1 ).   // 1 sec for nbf and iat
                 build().verify( decodedJwt );
