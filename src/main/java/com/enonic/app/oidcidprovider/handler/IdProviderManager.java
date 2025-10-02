@@ -58,6 +58,16 @@ public class IdProviderManager
         return algorithmProvider;
     }
 
+    public RSAAlgorithmProvider getAlgorithmProvider(String issuer) {
+        Map<String, Object> oidcServerConfig = getMatchingOidcServerConfig(issuer);
+        String jwksUri = (String) oidcServerConfig.get("jwksUri");
+        if (jwksUri == null) {
+            return null;
+        }
+        final JwkProvider jwkProvider = getJwkProvider(jwksUri);
+        return jwkProvider != null ? new RSAAlgorithmProvider(jwkProvider) : null;
+    }
+
     private RSAAlgorithmProvider resolveAlgorithmProvider()
     {
             final JwkProvider jwkProvider = getJwkProvider();
@@ -81,5 +91,18 @@ public class IdProviderManager
             throw new UncheckedIOException( e );
         }
         return new JwkProviderBuilder( url ).cached( true ).timeouts( TIMEOUT_MS, TIMEOUT_MS ).build();
+    }
+
+    private JwkProvider getJwkProvider(String jwksUri) {
+        if (jwksUri == null) {
+            return null;
+        }
+        final URL url;
+        try {
+            url = URI.create(jwksUri).toURL();
+        } catch (MalformedURLException e) {
+            throw new UncheckedIOException(e);
+        }
+        return new JwkProviderBuilder(url).cached(true).timeouts(TIMEOUT_MS, TIMEOUT_MS).build();
     }
 }
