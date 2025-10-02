@@ -3,6 +3,8 @@ const wellKnownService = require('/lib/configFile/wellKnownService');
 
 const END_SESSION_ADDITIONAL_PARAMETERS_PATTERN = '^idprovider\.[a-zA-Z0-9_-]+\.endSession\.additionalParameters\.(\\d+)\.(key|value)$';
 const ADDITIONAL_ENDPOINTS = "^idprovider\.[a-zA-Z0-9_-]+\.additionalEndpoints\.(\\d+)\.(name|url)$";
+const ADDITIONAL_OIDC_SERVERS =
+    /^idprovider\.[a-zA-Z0-9_-]+\.autoLogin\.additionalOidcServers\.(\d+)\.(issuer|jwksUri|allowedAudience|matchUsername|matchEmail)$/;
 
 const parseStringArray = value => value ? value.split(' ').filter(v => !!v) : [];
 const firstAtsToDollar = value => value ? value.replace(/@@\{/g, '${') : value;
@@ -56,6 +58,20 @@ exports.getIdProviderConfig = function (idProviderName) {
             allowedAudience: parseStringArray(rawIdProviderConfig[`${idProviderKeyBase}.autoLogin.allowedAudience`]),
         },
     };
+
+    const additionalOidcServers = extractPropertiesToArray(
+        rawIdProviderConfig,
+        `${idProviderKeyBase}.autoLogin.additionalOidcServers.`,
+        ADDITIONAL_OIDC_SERVERS
+    )
+
+    config.autoLogin.additionalOidcServers = additionalOidcServers.map(server => ({
+        issuer: server.issuer,
+        jwksUri: server.jwksUri,
+        matchUsername: firstAtsToDollar(server.matchUsername || null),
+        matchEmail: firstAtsToDollar(server.matchEmail || null),
+        allowedAudience: parseStringArray(server.allowedAudience || null)
+    }));
 
     if (hasProperty(rawIdProviderConfig, idProviderKeyBase, 'endSession')) {
         config.endSession = {
