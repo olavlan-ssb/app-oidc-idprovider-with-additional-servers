@@ -4,8 +4,12 @@ import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.JwkProviderBuilder;
@@ -14,6 +18,8 @@ import com.enonic.app.oidcidprovider.jwt.RSAAlgorithmProvider;
 
 public class IdProviderManager
 {
+    private final Logger LOG = LoggerFactory.getLogger(JwtHandler.class);
+
     private static final int TIMEOUT_MS = 5000;
 
     private final Map<String, Object> idProviderConfig;
@@ -29,6 +35,22 @@ public class IdProviderManager
     public Map<String, Object> getIdProviderConfig()
     {
         return idProviderConfig;
+    }
+
+    public Map<String, Object> getMatchingOidcServerConfig(String issuer) {
+        Map<String, Object> autoLogin = (Map<String, Object>) idProviderConfig.get("autoLogin");
+        LOG.debug("Autologin config: {}", autoLogin);
+
+        List<Map<String, Object>> additionalOidcServers = (List<Map<String, Object>>) autoLogin
+                .get("additionalOidcServers");
+        for (Map<String, Object> oidcServerConfig : additionalOidcServers) {
+            String iss = (String) oidcServerConfig.get("issuer");
+            if (iss.equals(issuer)) {
+                LOG.debug("Matching OIDC server config: {}", oidcServerConfig);
+                return oidcServerConfig;
+            }
+        }
+        return null;
     }
 
     public RSAAlgorithmProvider getAlgorithmProvider()
