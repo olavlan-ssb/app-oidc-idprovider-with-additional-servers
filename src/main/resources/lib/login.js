@@ -229,3 +229,59 @@ function updateUserData(claims, idProviderConfig, user) {
 }
 
 exports.login = login;
+
+function loginMatchingUser(tokenClaims, idProviderConfig) {
+    const user = findMatchingUser(tokenClaims, idProviderConfig);
+    if (!user) {
+        throw `Could not find matching user for token claims`;
+    }
+    doLogin(idProviderConfig, user.login, true);
+    return;
+}
+
+function findMatchingUser(tokenClaims, idProviderConfig) {
+    const idProviderKey = portalLib.getIdProviderKey();
+    const additionalOidcServers = idProviderConfig.autoLogin.additionalOidcServers;
+    log.debug("additionalOidcServers: %s", JSON.stringify(additionalOidcServers, null, 4));
+
+    let matchUsername = null;
+    let matchEmail = null;
+    for (const candidateOidcServer of additionalOidcServers) {
+        log.debug("candidateOidcServer: %s", JSON.stringify(candidateOidcServer, null, 4));
+        if (candidateOidcServer.issuer == tokenClaims.iss) {
+            matchUsername = candidateOidcServer.matchUsername;
+            matchEmail = candidateOidcServer.matchEmail;
+            log.debug("matchUsername: %s", JSON.stringify(matchUsername, null, 4));
+            log.debug("matchEmail: %s", JSON.stringify(matchEmail, null, 4));
+            break;
+        } 
+    }
+    if (matchUsername) {
+        const username = matchUsername.replace(regExp, (match, claimKey) => getClaim(tokenClaims, claimKey));
+        const resolvedPrincipalKey = `user:${idProviderKey}:${username}`;
+        log.debug("resolvedPrincipalKey: %s", JSON.stringify(resolvedPrincipalKey, null, 4));
+        const user = contextLib.runAsSu(() => authLib.getPrincipal(principalKey));
+        if (user) {
+            return user;
+        }
+    }
+
+    if (!matchEmail) {
+        return null;
+    }
+
+    const email = matchEmail.replace(regExp, (match, claimKey) => getClaim(tokenClaims, claimKey));
+    const findUsersQuery = `email = '${email}' AND userStoreKey = '${idProviderKey}'`;
+    log.debug("findUsersQuery: %s", JSON.stringify(findUsersQuery, null, 4));
+    const findUsersResult = contextLib.runAsSu(() => authLib.findUsers({
+        count: 2,
+        query: findUsersQuery
+    }));
+    log.debug("findUsersResult: %s", JSON.stringify(findUsersResult, null, 4));
+    if (findUsersResult.count != 1) {
+        return null;
+    }
+    return findUsersResult.hits[0];
+}
+
+exports.loginMatchingUser = loginMatchingUser;
