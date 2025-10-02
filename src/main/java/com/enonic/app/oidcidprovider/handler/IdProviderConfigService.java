@@ -32,6 +32,10 @@ public class IdProviderConfigService
         return idProviderManager != null ? idProviderManager.getIdProviderConfig() : null;
     }
 
+    public IdProviderManager getIdProviderManager(final String key) {
+        return CACHE.get(key);
+    }
+
     public RSAAlgorithmProvider getAlgorithmProvider( final String key )
     {
         final IdProviderManager idProviderManager = CACHE.get( key );

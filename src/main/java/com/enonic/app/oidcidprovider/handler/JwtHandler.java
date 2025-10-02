@@ -35,7 +35,8 @@ public class JwtHandler
         this.idProviderConfigServiceSupplier = context.getService( IdProviderConfigService.class );
     }
 
-    public Object validateTokenAndGetPayload( final String jwtToken, final String idProviderName, final List<String> allowedAudience )
+    public Object validateTokenAndGetPayload(final String jwtToken, final String idProviderName,
+            List<String> allowedAudience)
     {
         if ( jwtToken == null )
         {
@@ -45,6 +46,21 @@ public class JwtHandler
         try
         {
             DecodedJWT decodedJwt = JWT.decode( jwtToken );
+
+            final String issuer = decodedJwt.getIssuer();
+            if (issuer == null) {
+                return null;
+            }
+
+            IdProviderManager idProviderManager = idProviderConfigServiceSupplier.get()
+                    .getIdProviderManager(idProviderName);
+            Map<String, Object> idProviderConfig = idProviderManager.getIdProviderConfig();
+
+            String mainIssuer = (String) idProviderConfig.get("issuer");
+            if (!issuer.equals(mainIssuer)) {
+                Map<String, Object> oidcServerConfig = idProviderManager.getMatchingOidcServerConfig(issuer);
+                allowedAudience = (List<String>) oidcServerConfig.get("allowedAudience");
+            }
 
             if ( !allowedAudience.isEmpty() && decodedJwt.getAudience() != null )
             {
